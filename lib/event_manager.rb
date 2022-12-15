@@ -1,6 +1,7 @@
 require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
+require 'date'
 
 def clean_zipcode(zipcode)
   zipcode.to_s.rjust(5, "0")[0..4]
@@ -48,6 +49,15 @@ def clean_phone_number(number) # needs redo
   end
 end
 
+def most_registrations_hour(hours_array)
+  registration_hours = hours_array.reduce(Hash.new(0)) do |hash, hour|
+    hash[hour] += 1
+    hash
+  end
+
+  registration_hours.max_by { |_key, value| value }.first
+end
+
 puts 'EventManager initialized.'
 
 contents = CSV.open(
@@ -59,6 +69,8 @@ contents = CSV.open(
 template_letter = File.read('form_letter.erb')
 erb_template = ERB.new template_letter
 
+hours = []
+
 contents.each do |row|
   id = row[0]
   name = row[:first_name]
@@ -69,4 +81,10 @@ contents.each do |row|
   form_letter = erb_template.result(binding)
 
   save_thank_you_letter(id, form_letter)
+
+  time = row[:regdate]
+  parsed = Date._strptime(time, '%m/%d/%Y %k:%M')
+  hours << parsed[:hour]
 end
+
+top_registration_hour = most_registrations_hour(hours)
