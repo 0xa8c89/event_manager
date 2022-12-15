@@ -2,6 +2,7 @@ require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
 require 'date'
+require 'time'
 
 def clean_zipcode(zipcode)
   zipcode.to_s.rjust(5, "0")[0..4]
@@ -49,13 +50,22 @@ def clean_phone_number(number) # needs redo
   end
 end
 
-def most_registrations_hour(hours_array)
+def most_registrations_hour(hours_array) # redo with time objs
   registration_hours = hours_array.reduce(Hash.new(0)) do |hash, hour|
     hash[hour] += 1
     hash
   end
 
   registration_hours.max_by { |_key, value| value }.first
+end
+
+def day_of_the_week(time_objs)
+  weekdays = time_objs.reduce(Hash.new(0)) do |hash, i|
+    hash[i.strftime('%A')] += 1
+    hash
+  end
+
+  weekdays.max_by { |_key, value| value }[0]
 end
 
 puts 'EventManager initialized.'
@@ -70,6 +80,7 @@ template_letter = File.read('form_letter.erb')
 erb_template = ERB.new template_letter
 
 hours = []
+time_objs = []
 
 contents.each do |row|
   id = row[0]
@@ -83,8 +94,12 @@ contents.each do |row|
   save_thank_you_letter(id, form_letter)
 
   time = row[:regdate]
-  parsed = Date._strptime(time, '%m/%d/%Y %k:%M')
+  parsed = Date._strptime(time, '%m/%d/%Y %H:%M')
   hours << parsed[:hour]
+
+  time_objs << Time.strptime(time, '%m/%d/%Y %H:%M')
 end
 
 top_registration_hour = most_registrations_hour(hours)
+
+top_weekday = day_of_the_week(time_objs)
